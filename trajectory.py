@@ -3,8 +3,26 @@ import cv2 as cv
 import matplotlib
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
+from matplotlib.animation import FFMpegWriter
+import matplotlib.cm as cm
+
 import copy
 matplotlib.use("TkAgg")
+
+Video = False
+Image = True
+
+def replace(image,cur,new):
+    n = image.shape[0]  # height
+    m = image.shape[1]  # width
+    new_image = np.zeros((n,m))
+    for i in range(n):
+        for j in range(m):
+            if image[i][j] == cur:
+                new_image[i][j] = new
+    return new_image.astype(int)
+
+
 
 def animate(i,path):
 
@@ -16,7 +34,7 @@ def animate(i,path):
 
     dot.set_xdata(path[int(i)][1])
     dot.set_ydata(path[int(i)][0])
-    #return line,
+    return line,dot
 
 
 
@@ -140,7 +158,8 @@ while True:
 #cv.waitKey(0)
 #cv.destroyAllWindows()"""
 
-#skel = zhangSuen(edges)
+#tmp = replace(edges,255,1)
+#skel = zhangSuen(tmp)
 skel = edges
 #cv.imshow("edges",skel)
 #cv.waitKey(0)
@@ -340,30 +359,41 @@ while ((len(se_points) != 0) & (loop < 300)):
     
 fp.write(msg)
 fp.close()
+print(path_number)
 
 #animation
 
-animation = FuncAnimation(figure,
-                          func=animate,
-                          frames=np.arange(0, len(comb_paths), 3),
-                          fargs=(comb_paths,),
-                          interval=0)
 
-plt.show()
+
+
+if Video:
+    animation = FuncAnimation(figure,
+                              func=animate,
+                              frames=np.arange(0, len(comb_paths), 10),
+                              fargs=(comb_paths,),
+                              interval=0.0001)
+    #plt.show()
+    FFwriter = FFMpegWriter(fps = 30, codec="h264")
+    animation.save('1.mp4',writer = FFwriter)
 
 #draw a image to check
 
-drawn_matrix = np.array(drawn_matrix)
-for i in range(n):
-    for j in range(m):
-        if drawn_matrix[i][j] == 1:
-            drawn_matrix[i][j] = 255
-        else:
-            drawn_matrix[i][j] = 0
+if Image:
+    drawn_matrix = np.array(drawn_matrix)
+    for i in range(n):
+        for j in range(m):
+            if drawn_matrix[i][j] == 1:
+                drawn_matrix[i][j] = 255
+            else:
+                drawn_matrix[i][j] = 0
 
-print(path_number)
-plt.imshow(drawn_matrix, cmap='gray', vmin=0, vmax=255)
-plt.show()
+    plt.imsave('thin.png', drawn_matrix, cmap=cm.gray)
+
+#plt.imshow(drawn_matrix, cmap='gray', vmin=0, vmax=255)
+#plt.show()
+
+
+
 #u8 = cv.convertScaleAbs(drawn_matrix)
 #cv.imshow("drawn",u8)
 #cv.waitKey(0)
