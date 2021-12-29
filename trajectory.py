@@ -175,7 +175,7 @@ m = len(skel[0]) #width
 se_points = []
 branch_points = []
 brmatrix = []
-#inittialize brmatrix
+#initialize brmatrix
 for i in range(n):
     for j in range(m):
         if j == 0:
