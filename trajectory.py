@@ -5,12 +5,8 @@ from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib.animation import FFMpegWriter
 import matplotlib.cm as cm
-
 import copy
 matplotlib.use("TkAgg")
-
-Video = False
-Image = True
 
 def replace(image,cur,new):
     n = image.shape[0]  # height
@@ -21,8 +17,6 @@ def replace(image,cur,new):
             if image[i][j] == cur:
                 new_image[i][j] = new
     return new_image.astype(int)
-
-
 
 def animate(i,path):
 
@@ -37,32 +31,31 @@ def animate(i,path):
     return line,dot
 
 
-
-def search_neighbors(op, brmatrix, se_points, visited_matrix):
+def search_neighbors(op, brmatrix, se_points, visited_matrix, se_points_original):
     x = op[0]
     y = op[1]
     neighbors = []
-    neighbors.append([x-1,y-1])
-    neighbors.append([x-1,y])
-    neighbors.append([x-1,y+1])
-    neighbors.append([x,y-1])
-    neighbors.append([x,y+1])
-    neighbors.append([x+1,y-1])
-    neighbors.append([x+1,y])
-    neighbors.append([x+1,y+1])
-    #print(neighbors)
+    neighbors.append([x - 1, y - 1])
+    neighbors.append([x - 1, y])
+    neighbors.append([x - 1, y + 1])
+    neighbors.append([x, y - 1])
+    neighbors.append([x, y + 1])
+    neighbors.append([x + 1, y - 1])
+    neighbors.append([x + 1, y])
+    neighbors.append([x + 1, y + 1])
+    # print(neighbors)
     for i in range(8):
         if brmatrix[neighbors[i][0]][neighbors[i][1]] == 1:
             if visited_matrix[neighbors[i][0]][neighbors[i][1]] == 0:
-                #print("found branch")
-                return [neighbors[i][0],neighbors[i][1]],0
+                # print("found branch")
+                return [neighbors[i][0], neighbors[i][1]], 0
 
     for i in range(8):
-        for j in range(len(se_points)):
-            if  (neighbors[i][0] == se_points[j][0]) & (neighbors[i][1] == se_points[j][1]):
-                return [neighbors[i][0],neighbors[i][1]],1
-    return [-1,-1],2
-    
+        for j in range(len(se_points_original)):
+            if (neighbors[i][0] == se_points_original[j][0]) & (neighbors[i][1] == se_points_original[j][1]):
+                return [neighbors[i][0], neighbors[i][1]], 1
+
+    return [-1, -1], 2
 
 #zhang suen thinning
 def intarray(binstring):
@@ -121,140 +114,273 @@ def zhangSuen(image):
         #print changing2
     return image     
 
+def trajectory_1(skel):
+    # search for start/end points and branch points
+    # print(skel[0][0])
+    n = len(skel)  # height
+    m = len(skel[0])  # width
+    # search for start/end points and branch points
+    # print(skel[0][0])
+    se_points = []
+    branch_points = []
+    brmatrix = []
+    # inittialize brmatrix
+    for i in range(n):
+        for j in range(m):
+            if j == 0:
+                brmatrix.append([0])
+            else:
+                brmatrix[i].append(0)
+    # print(brmatrix[0][20])
 
+    test = []
+    # inittialize test
+    for i in range(n):
+        for j in range(m):
+            if j == 0:
+                test.append([0])
+            else:
+                test[i].append(0)
+
+    for i in range(1, n - 1):
+        for j in range(1, m - 1):
+            if skel[i][j] == 255:
+                # print(skel[i][j])
+                # print("hi")
+                neighbors = []
+                neighbors.append(skel[i - 1][j - 1])
+                neighbors.append(skel[i - 1][j])
+                neighbors.append(skel[i - 1][j + 1])
+                neighbors.append(skel[i][j - 1])
+                neighbors.append(skel[i][j + 1])
+                neighbors.append(skel[i + 1][j - 1])
+                neighbors.append(skel[i + 1][j])
+                neighbors.append(skel[i + 1][j + 1])
+                amount = 0
+                for k in range(8):
+                    if neighbors[k] == 255:
+                        amount += 1
+                if amount == 1:
+                    se_points.append([i, j])
+                if amount > 1:
+                    branch_points.append([i, j])
+                    brmatrix[i][j] = 1
+                """if (i == 60) & (j == 77):
+                    print(amount)
+                    print(neighbors)"""
+
+    if len(se_points) == 0:
+        if len(branch_points) != 0:
+            se_points.append(branch_points[0])
+        else:
+            print("Empty picture")
+
+    # write to file to check
+
+    fp = open("check_startend.txt", "w")
+    msg = ""
+    width = 2
+    for i in range(len(se_points)):
+        """test[se_points[i][0]][se_points[i][1]] = 255
+        for k in range(2*width +1):
+            for j in range(2*width + 1):
+                try:
+                    test[se_points[i][0] - width + k][se_points[i][1] - width + j] = 255
+                except ValueError:
+                     pass"""
+        msg += str(se_points[i][0]) + " " + str(se_points[i][1]) + "\n"
+    fp.write(msg)
+    fp.close()
+
+    test = np.array(test)
+    # plt.imshow(test, cmap='gray', vmin=0, vmax=255)
+    # plt.show()
+
+    msg = ""
+    fp = open("check_branch.txt", "w")
+
+    for i in range(len(branch_points)):
+        msg += str(branch_points[i][0]) + " " + str(branch_points[i][1]) + "\n"
+    fp.write(msg)
+    fp.close()
+
+    # form trajectories
+    print("searching paths")
+    fp = open("path.txt", "w")
+    se_points_original = copy.deepcopy(se_points)
+    msg = ""
+
+    drawn_matrix = []
+    for i in range(n):
+        for j in range(m):
+            if j == 0:
+                drawn_matrix.append([0])
+            else:
+                drawn_matrix[i].append(0)
+
+    drawn_width_matrix = []
+    for i in range(n):
+        for j in range(m):
+            if j == 0:
+                drawn_width_matrix.append([0])
+            else:
+                drawn_width_matrix[i].append(0)
+
+    loop = 0
+    path_number = 0
+    width = 1  # pen width
+    comb_paths = []
+    while ((len(se_points) != 0) & (loop < 400)):
+        loop += 1
+        # print("start")
+        visited_matrix = []
+        for i in range(n):
+            for j in range(m):
+                if j == 0:
+                    visited_matrix.append([0])
+                else:
+                    visited_matrix[i].append(0)
+        path = []
+        path.append(se_points[0])
+        c = 0
+        next_point = se_points[0]
+        visited_matrix[next_point[0]][next_point[1]] = 1
+        for i in range(2 * width + 1):
+            for j in range(2 * width + 1):
+                try:
+                    drawn_matrix[next_point[0]][next_point[1]] = 1
+                    drawn_width_matrix[next_point[0] - width + i][next_point[1] - width + j] = 1
+                except ValueError:
+                    pass
+
+        while c == 0:
+
+            next_point, c = search_neighbors(next_point, brmatrix, se_points, drawn_matrix, se_points_original)
+            # print(next_point)
+            if c == 2:
+                try:
+                    branch_points = [subl for subl in branch_points if
+                                     ((subl[0] != next_point[0]) or (subl[1] != next_point[1]))]
+                except ValueError:
+                    pass
+                break
+
+            for i in range(2 * width + 1):
+                for j in range(2 * width + 1):
+                    try:
+                        drawn_matrix[next_point[0]][next_point[1]] = 1
+                        drawn_width_matrix[next_point[0] - width + i][next_point[1] - width + j] = 1
+                    except ValueError:
+                        pass
+
+            branch_points = [subl for subl in branch_points if
+                             ((subl[0] != next_point[0]) or (subl[1] != next_point[1]))]
+            # print(len(branch_points))
+            # brmatrix[next_point[0]][next_point[1]] = 0
+            if visited_matrix[next_point[0]][next_point[1]] == 0:
+                path.append(next_point)
+                visited_matrix[next_point[0]][next_point[1]] = 1
+            else:
+                break
+        comb_paths.extend(path)
+        # print(path)
+        # print("done")
+        if c == 1:
+            branch_points = [subl for subl in branch_points if
+                             ((subl[0] != next_point[0]) or (subl[1] != next_point[1]))]
+            # print("1")
+            # print(len(se_points))
+
+        if len(se_points) >= 2:
+            # print(next_point)
+            se_points.pop(0)
+            try:
+                # print(next_point)
+                se_points = [subl for subl in se_points if ((subl[0] != next_point[0]) or (subl[1] != next_point[1]))]
+                # print(se_points)
+            except ValueError:
+                None
+        else:
+            se_points.pop(0)
+            # print(se_points)
+        if len(path) > 10:
+            print("success")
+            path_number += 1
+            # print(loop)
+            for i in range(len(path)):
+                # print(path[i])
+                if (i == (len(path) - 1)):
+                    msg += str(path[i][0]) + " " + str(path[i][1]) + "\n"
+                else:
+                    msg += str(path[i][0]) + " " + str(path[i][1]) + ","
+            if len(path) < 20:
+                """visited_matrix = np.array(visited_matrix)
+                for i in range(n):
+                    for j in range(m):
+                        if visited_matrix[i][j] == 1:
+                            visited_matrix[i][j] = 255
+                        else:
+                            visited_matrix[i][j] = 0
+
+                print(path_number)
+                plt.imshow(visited_matrix, cmap='gray', vmin=0, vmax=255)
+                plt.show()
+                plt.imshow(skel, cmap='gray', vmin=0, vmax=1)
+                plt.show()"""
+
+                # print(path)
+                # print(next_point, c)
+                pass
+
+            """drawn_matrix = np.array(drawn_matrix)
+            for i in range(n):
+                for j in range(m):
+                    if drawn_matrix[i][j] == 1:
+                        drawn_matrix[i][j] = 255
+                    else:
+                        drawn_matrix[i][j] = 0
+
+            print(path_number)
+            plt.imshow(drawn_matrix, cmap='gray', vmin=0, vmax=255)
+            plt.show()
+            for i in range(n):
+                for j in range(m):
+                    if drawn_matrix[i][j] == 255:
+                        drawn_matrix[i][j] = 1
+                    else:
+                        drawn_matrix[i][j] = 0"""
+        comb_paths.extend(path)
+        if len(se_points) == 0:
+            for i in range(len(branch_points)):
+                if drawn_width_matrix[branch_points[i][0]][branch_points[i][1]] == 0:
+                    # print("activated")
+                    a = copy.deepcopy([branch_points[i][0], branch_points[i][1]])
+                    se_points.append([branch_points[i][0], branch_points[i][1]])
+                    branch_points = [subl for subl in branch_points if ((subl[0] != a[0]) or (subl[1] != a[1]))]
+                    # print(se_points)
+                    break
+
+    fp.write(msg)
+    fp.close()
+    return drawn_matrix,comb_paths
+
+
+
+Video = True
+Image = False
 
 img = cv.imread('.\image\snoopy.jpg',cv.IMREAD_GRAYSCALE)
-#RGB_img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
 img = cv.bitwise_not(img)
 
 #canny edge detection
 edges = cv.Canny(img,100,200)
-#edges = cv.bitwise_not(edges)
-
-"""#skeletonize
-img = edges
-size = np.size(img)
-skel = np.zeros(img.shape, np.uint8)
-
-# Get a Cross Shaped Kernel
-element = cv.getStructuringElement(cv.MORPH_CROSS, (3,3))
-
-# Repeat steps 2-4
-while True:
-    #Step 2: Open the image
-    opimg = cv.morphologyEx(img, cv.MORPH_OPEN, element)
-    #Step 3: Substract open from the original image
-    temp = cv.subtract(img, opimg)
-    #Step 4: Erode the original image and refine the skeleton
-    eroded = cv.erode(img, element)
-    skel = cv.bitwise_or(skel,temp)
-    img = eroded.copy()
-    # Step 5: If there are no white pixels left ie.. the image has been completely eroded, quit the loop
-    if cv.countNonZero(img)==0:
-        break
-
-# Displaying the final skeleton
-#cv.imshow("Skeleton",skel)
-#cv.waitKey(0)
-#cv.destroyAllWindows()"""
-
-#tmp = replace(edges,255,1)
-#skel = zhangSuen(tmp)
 skel = edges
-#cv.imshow("edges",skel)
-#cv.waitKey(0)
-#cv.destroyAllWindows()
-
 #size of image
 n = len(skel) #height
 m = len(skel[0]) #width
-#print(n,m)
-
-#search for start/end points and branch points
-#print(skel[0][0])
-se_points = []
-branch_points = []
-brmatrix = []
-#initialize brmatrix
-for i in range(n):
-    for j in range(m):
-        if j == 0:
-            brmatrix.append([0])
-        else:
-            brmatrix[i].append(0)
-#print(brmatrix[0][20])
 
 
-for i in range(1,n-1):
-    for j in range(1,m-1):
-        if skel[i][j] == 255:
-            #print(skel[i][j])
-            #print("hi")
-            neighbors = []
-            neighbors.append(skel[i-1][j-1])
-            neighbors.append(skel[i-1][j])
-            neighbors.append(skel[i-1][j+1])
-            neighbors.append(skel[i][j-1])
-            neighbors.append(skel[i][j+1])
-            neighbors.append(skel[i+1][j-1])
-            neighbors.append(skel[i+1][j])
-            neighbors.append(skel[i+1][j+1])
-            amount = 0
-            for k in range(8):
-                if neighbors[k] == 255:
-                    amount += 1
-            if amount == 1:
-                se_points.append([i,j])
-            if amount > 1:
-                branch_points.append([i,j])
-                brmatrix[i][j] = 1
-        
-
-
-if len(se_points) == 0:
-    if len(branch_points) != 0:
-        se_points.append(branch_points[0])
-    else:
-        print("Empty picture")
-
-
-#write to file to check
-
-"""fp = open("check_startend.txt","w")
-msg = ""
-for i in range(len(se_points)):
-    msg += str(se_points[i][0]) + " " + str(se_points[i][1]) + "\n"
-fp.write(msg)
-fp.close()
-
-msg = ""
-fp = open("check_branch.txt","w")
-
-for i in range(len(branch_points)):
-    msg += str(branch_points[i][0]) + " " + str(branch_points[i][1]) + "\n"
-fp.write(msg)
-fp.close()"""
-
-#form trajectories
-print("searching paths")
-fp = open("path.txt","w")
-se_points_original = copy.deepcopy(se_points)
-msg = ""
-
-drawn_matrix = []
-for i in range(n):
-    for j in range(m):
-        if j == 0:
-            drawn_matrix.append([0])
-        else:
-            drawn_matrix[i].append(0)
-
-
-
-loop = 0
-path_number = 0
-
-#for animation
+# for animation
 x_line = []
 y_line = []
 # Kev: animation of path
@@ -265,107 +391,15 @@ ax.set_ylim(0, n)
 ax.set_aspect('equal')
 # Since plotting a single graph
 line, = ax.plot(0, 0)
-dot, = ax.plot(0,0,'bo')
+dot, = ax.plot(0, 0, 'bo')
 
 
-comb_paths = []
-while ((len(se_points) != 0) & (loop < 300)):
-    loop += 1
-    #print("start")
-    visited_matrix = []
-    for i in range(n):
-        for j in range(m):
-            if j == 0:
-                visited_matrix.append([0])
-            else:
-                visited_matrix[i].append(0)
-    path = []
-    path.append(se_points[0])
-    c = 0
-    next_point = se_points[0]
-    visited_matrix[next_point[0]][next_point[1]] = 1
-    drawn_matrix[next_point[0]][next_point[1]] = 1
-    drawn_matrix[next_point[0]-1][next_point[1]-1] = 1
-    drawn_matrix[next_point[0]-1][next_point[1]] = 1
-    drawn_matrix[next_point[0]-1][next_point[1]+1] = 1
-    drawn_matrix[next_point[0]+1][next_point[1]-1] = 1
-    drawn_matrix[next_point[0]+1][next_point[1]] = 1
-    drawn_matrix[next_point[0]+1][next_point[1]+1] = 1
-    drawn_matrix[next_point[0]][next_point[1]-1] = 1
-    drawn_matrix[next_point[0]][next_point[1]+1] = 1
-    while c == 0:
 
-        # c == 0 branch point
-        # c == 1 start/end point
-        # c == 2 neither
-        next_point, c = search_neighbors(next_point,brmatrix,se_points, visited_matrix)
-        #print(next_point)
-        if c==2:
-            break
-        drawn_matrix[next_point[0]][next_point[1]] = 1
-        drawn_matrix[next_point[0]-1][next_point[1]-1] = 1
-        drawn_matrix[next_point[0]-1][next_point[1]] = 1
-        drawn_matrix[next_point[0]-1][next_point[1]+1] = 1
-        drawn_matrix[next_point[0]+1][next_point[1]-1] = 1
-        drawn_matrix[next_point[0]+1][next_point[1]] = 1
-        drawn_matrix[next_point[0]+1][next_point[1]+1] = 1
-        drawn_matrix[next_point[0]][next_point[1]-1] = 1
-        drawn_matrix[next_point[0]][next_point[1]+1] = 1
-        branch_points = [subl for subl in branch_points if ((subl[0] != next_point[0])or(subl[1] != next_point[1]))]
-        #brmatrix[next_point[0]][next_point[1]] = 0
-        if visited_matrix[next_point[0]][next_point[1]] == 0: 
-            path.append(next_point)
-            visited_matrix[next_point[0]][next_point[1]] = 1
-        else:
-            break
-    #print(path)
-    #print("done")
-    if c == 1:
-        branch_points = [subl for subl in branch_points if ((subl[0] != next_point[0])or(subl[1] != next_point[1]))]
-   
-
-    if len(se_points) > 2:
-        #print(next_point)
-        se_points.pop(0)
-        try:
-            se_points = [subl for subl in se_points if ((subl[0] != next_point[0])or(subl[1] != next_point[1]))]
-        except ValueError:
-            None
-    else:
-        se_points.pop(0)
-        #print(se_points)
-    if len(path) > 1:
-        print("success")
-        path_number += 1
-        #print(loop)
-        comb_paths.extend(path)
+drawn_matrix, comb_paths = trajectory_1(skel)
 
 
-        for i in range(len(path)):
-            #print(path[i])
-            if (i == (len(path)-1)):
-                msg += str(path[i][0]) + " " + str(path[i][1]) + "\n"
-            else:
-                msg += str(path[i][0]) + " " + str(path[i][1]) + ","
-    
-    for i in range(len(branch_points)):
-        if  drawn_matrix[branch_points[i][0]][branch_points[i][1]] == 0:
-            #print("activated")
-            a = copy.deepcopy([branch_points[i][0],branch_points[i][1]])
-            se_points.append([branch_points[i][0],branch_points[i][1]])
-            branch_points = [subl for subl in branch_points if ((subl[0] != a[0])or(subl[1] != a[1]))]
-            #print(se_points[0])
-            break
-    
-fp.write(msg)
-fp.close()
-print(path_number)
 
 #animation
-
-
-
-
 if Video:
     animation = FuncAnimation(figure,
                               func=animate,
@@ -387,7 +421,7 @@ if Image:
             else:
                 drawn_matrix[i][j] = 0
 
-    plt.imsave('thin.png', drawn_matrix, cmap=cm.gray)
+    plt.imsave('thick.png', drawn_matrix, cmap=cm.gray)
 
 #plt.imshow(drawn_matrix, cmap='gray', vmin=0, vmax=255)
 #plt.show()
